@@ -1,54 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Week Kalender</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div id="calendar-container">
-    <div class="header">
-      <div class="day">Maandag</div>
-      <div class="day">Dinsdag</div>
-      <div class="day">Woensdag</div>
-      <div class="day">Donderdag</div>
-      <div class="day">Vrijdag</div>
-      <div class="day">Zaterdag</div>
-      <div class="day">Zondag</div>
-      
-    </div>
-    <div class="body">
-      <!-- Tijdslots -->
-      <div class="hours">
-        <div class="time">08:30</div>
-        <div class="time">09:30</div>
-        <div class="time">10:30</div>
-        <div class="time">11:30</div>
-        <div class="time">12:30</div>
-        <div class="time">13:30</div>
-        <div class="time">14:30</div>
-        <div class="time">15:30</div>
-        <div class="time">16:30</div>
-        <div class="time">17:30</div>
-      </div>
-      <!-- Dagen en kwartieren -->
-      <div class="days">
-        <!-- Dit zal via JavaScript dynamisch gevuld worden -->
-      </div>
-    </div>
-  </div>
+<?php
+// Databaseconfiguratie via omgeving (zoals opgegeven in je docker-compose.yml)
+$host = 'mariadb'; // Naam van de service in docker-compose.yml
+$db_name = getenv('DB_NAME'); // Haalt de database-naam op uit omgevingsvariabelen
+$db_user = getenv('DB_USERNAME'); // Haalt de gebruikersnaam op
+$db_password = getenv('DB_PASSWORD'); // Haalt het wachtwoord op
+$db_port = 3306; // Standaard MariaDB/MySQL-poort
 
-  <!-- Modal -->
-  <div id="modal" class="hidden">
-    <form id="modal-form">
-      <label for="description">Beschrijving:</label>
-      <textarea id="description" name="description"></textarea>
-      <button type="submit">Opslaan</button>
-      <button type="button" id="close-modal">Sluiten</button>
-    </form>
-  </div>
+// Maak verbinding met de database
+$mysqli = new mysqli($host, $db_user, $db_password, $db_name, $db_port);
 
-  <script src="script.js"></script>
-</body>
-</html>
+// Controleer de verbinding
+if ($mysqli->connect_error) {
+    die('Databaseverbinding mislukt: ' . $mysqli->connect_error);
+}
+
+// Haal gegevens op uit de Tijdsloten-tabel en voeg informatie toe via JOIN
+$sql = "
+    SELECT 
+        t.Id AS Tijdslot_ID,
+        t.Dag,
+        ts.Tijdstip,
+        p.Papierformaat,
+        s.Status,
+        k.Naam AS KlantNaam,
+        t.Extra_info,
+        a.Naam AS AdminNaam
+    FROM Tijdsloten t
+    JOIN Tijdstippen ts ON t.`Tijdslot-id` = ts.Id
+    JOIN Papierformaten p ON t.`Papierformaten-id` = p.Id
+    JOIN Status s ON t.`Status-id` = s.Id
+    JOIN klanten k ON t.`Klanten-id` = k.Id
+    LEFT JOIN Admin_users a ON t.`Admin-bewerkt-id` = a.Id
+    ORDER BY t.Dag ASC
+";
+
+// Voer de query uit
+$result = $mysqli->query($sql);
+
+// Controleer of er resultaten zijn
+if ($result && $result->num_rows > 0) {
+    echo "<h1>Tijdsloten Overzicht</h1>";
+    echo "<table border='1'>";
+    echo "<tr>
+            <th>Tijdslot ID</th>
+            <th>Dag</th>
+            <th>Tijdstip</th>
+            <th>Papierformaat</th>
+            <th>Status</th>
+            <th>Klantnaam</th>
+            <th>Extra Info</th>
+            <th>Beheerd door (Admin)</th>
+          </tr>";
+
+    while ($row = $result->fetch_assoc()) {
+        echo "<tr>";
+        echo "<td>" . htmlspecialchars($row['Tijdslot_ID']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Dag']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Tijdstip']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Papierformaat']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['KlantNaam']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['Extra_info']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['AdminNaam'] ?? 'Niet toegewezen') . "</td>";
+        echo "</tr>";
+    }
+
+    echo "</table>";
+} else {
+    echo "<p>Geen tijdsloten gevonden.</p>";
+}
+
+// Sluit de databaseverbinding
+$mysqli->close();
+?>
