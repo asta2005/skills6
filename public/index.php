@@ -1,10 +1,15 @@
 <?php
-// Databaseconfiguratie via omgeving (zoals opgegeven in je docker-compose.yml)
-$host = 'mariadb'; // Naam van de service in docker-compose.yml
-$db_name = getenv('DB_NAME'); // Haalt de database-naam op uit omgevingsvariabelen
-$db_user = getenv('DB_USERNAME'); // Haalt de gebruikersnaam op
-$db_password = getenv('DB_PASSWORD'); // Haalt het wachtwoord op
+// Haal de databaseconfiguratie uit de omgevingsvariabelen
+$host = getenv('DB_HOST'); // Naam van de service in docker-compose.yml (mariadb)
+$db_name = getenv('DB_NAME');
+$db_user = getenv('DB_USERNAME');
+$db_password = getenv('DB_PASSWORD');
 $db_port = 3306; // Standaard MariaDB/MySQL-poort
+
+// Controleer of de omgevingsvariabelen aanwezig zijn
+if (!$host || !$db_name || !$db_user || !$db_password) {
+    die('Fout: Omgevingsvariabelen voor de database zijn niet correct ingesteld.');
+}
 
 // Maak verbinding met de database
 $mysqli = new mysqli($host, $db_user, $db_password, $db_name, $db_port);
@@ -14,7 +19,7 @@ if ($mysqli->connect_error) {
     die('Databaseverbinding mislukt: ' . $mysqli->connect_error);
 }
 
-// Haal gegevens op uit de Tijdsloten-tabel en voeg informatie toe via JOIN
+// SQL-query om gegevens op te halen
 $sql = "
     SELECT 
         t.Id AS Tijdslot_ID,
@@ -40,7 +45,7 @@ $result = $mysqli->query($sql);
 // Controleer of er resultaten zijn
 if ($result && $result->num_rows > 0) {
     echo "<h1>Tijdsloten Overzicht</h1>";
-    echo "<table border='1'>";
+    echo "<table border='1' cellpadding='5' cellspacing='0'>";
     echo "<tr>
             <th>Tijdslot ID</th>
             <th>Dag</th>
