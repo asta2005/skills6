@@ -1,47 +1,47 @@
 services:
 
-   php:
-      image: wodby/php:latest
-      container_name: skills_m6_php
-      volumes:
-         - './:/var/www/html'
+  php:
+    image: wodby/php:latest
+    container_name: skills_m6_php
+    volumes:
+      - './:/var/www/html'
 
-   nginx:
-      image: nginx:latest
-      container_name: skills_m6_nginx
-      ports:
-         - 81:80
-      links:
-         - php
-      volumes:
-         - './:/var/www/html'
-         - './docker:/etc/nginx/conf.d'
-      depends_on:
-         - php
-         - mariadb
+  nginx:
+    image: nginx:latest
+    container_name: skills_m6_nginx
+    ports:
+      - 81:80
+    depends_on:
+      - php
+      - mariadb
+    volumes:
+      - './:/var/www/html'
+      - './docker:/etc/nginx/conf.d'
 
-   mariadb:
-      image: mariadb:latest
-      container_name: skills_m6_mariadb
-      volumes:
-         - './:/var/www/html'
-      environment:
-         MYSQL_DATABASE: '${DB_NAME}'
-         MYSQL_USER: '${DB_USERNAME}'
-         MYSQL_PASSWORD: '${DB_PASSWORD}'
-         MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD}'
-      ports: 
-         - 3356:3306
+  mariadb:
+    image: mariadb:latest
+    container_name: skills_m6_mariadb
+    environment:
+      MYSQL_DATABASE: '${DB_NAME}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD}'
+    ports: 
+      - 3356:3306
+    volumes:
+      - mariadb_data:/var/lib/mysql
 
-   phpmyadmin:
-      image: phpmyadmin:latest
-      container_name: skills_m6_phpmyadmin
-      ports:
-         - 8005:80
-      depends_on:
-         - mariadb
-      environment:
-         PMA_HOST: mariadb
-         PMA_USER: '${DB_USERNAME}'
-         PMA_PASSWORD: '${DB_PASSWORD}'
-  
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: skills_m6_phpmyadmin
+    ports:
+      - 8005:80
+    depends_on:
+      - mariadb
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: '${DB_USERNAME}'
+      PMA_PASSWORD: '${DB_PASSWORD}'
+
+volumes:
+  mariadb_data:

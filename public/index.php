@@ -1,80 +1,116 @@
 <?php
-// Haal de databaseconfiguratie uit de omgevingsvariabelen
-$host = getenv('DB_HOST'); // Naam van de service in docker-compose.yml (mariadb)
-$db_name = getenv('DB_NAME');
-$db_user = getenv('DB_USERNAME');
-$db_password = getenv('DB_PASSWORD');
-$db_port = 3306; // Standaard MariaDB/MySQL-poort
+// Stel de huidige maand en jaar in
+$month = isset($_GET['month']) ? $_GET['month'] : date('m');
+$year = isset($_GET['year']) ? $_GET['year'] : date('Y');
 
-// Controleer of de omgevingsvariabelen aanwezig zijn
-if (!$host || !$db_name || !$db_user || !$db_password) {
-    die('Fout: Omgevingsvariabelen voor de database zijn niet correct ingesteld.');
+// Bereken het aantal dagen in de maand en de eerste dag van de maand
+$daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+$firstDayOfMonth = date('w', strtotime("$year-$month-01"));
+
+// Functie om de naam van de maand te krijgen
+function getMonthName($monthNumber) {
+    return date('F', mktime(0, 0, 0, $monthNumber, 1));
 }
 
-// Maak verbinding met de database
-$mysqli = new mysqli($host, $db_user, $db_password, $db_name, $db_port);
-
-// Controleer de verbinding
-if ($mysqli->connect_error) {
-    die('Databaseverbinding mislukt: ' . $mysqli->connect_error);
+// Functie om een link te maken voor navigatie
+function createNavLink($month, $year, $text) {
+    return "<a href='?month=$month&year=$year'>$text</a>";
 }
 
-// SQL-query om gegevens op te halen
-$sql = "
-    SELECT 
-        t.Id AS Tijdslot_ID,
-        t.Dag,
-        ts.Tijdstip,
-        p.Papierformaat,
-        s.Status,
-        k.Naam AS KlantNaam,
-        t.Extra_info,
-        a.Naam AS AdminNaam
-    FROM Tijdsloten t
-    JOIN Tijdstippen ts ON t.`Tijdslot-id` = ts.Id
-    JOIN Papierformaten p ON t.`Papierformaten-id` = p.Id
-    JOIN Status s ON t.`Status-id` = s.Id
-    JOIN klanten k ON t.`Klanten-id` = k.Id
-    LEFT JOIN Admin_users a ON t.`Admin-bewerkt-id` = a.Id
-    ORDER BY t.Dag ASC
-";
-
-// Voer de query uit
-$result = $mysqli->query($sql);
-
-// Controleer of er resultaten zijn
-if ($result && $result->num_rows > 0) {
-    echo "<h1>Tijdsloten Overzicht</h1>";
-    echo "<table border='1' cellpadding='5' cellspacing='0'>";
-    echo "<tr>
-            <th>Tijdslot ID</th>
-            <th>Dag</th>
-            <th>Tijdstip</th>
-            <th>Papierformaat</th>
-            <th>Status</th>
-            <th>Klantnaam</th>
-            <th>Extra Info</th>
-            <th>Beheerd door (Admin)</th>
-          </tr>";
-
-    while ($row = $result->fetch_assoc()) {
-        echo "<tr>";
-        echo "<td>" . htmlspecialchars($row['Tijdslot_ID']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Dag']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Tijdstip']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Papierformaat']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Status']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['KlantNaam']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['Extra_info']) . "</td>";
-        echo "<td>" . htmlspecialchars($row['AdminNaam'] ?? 'Niet toegewezen') . "</td>";
-        echo "</tr>";
-    }
-
-    echo "</table>";
-} else {
-    echo "<p>Geen tijdsloten gevonden.</p>";
+// Bereken vorige en volgende maand
+$prevMonth = $month - 1;
+$prevYear = $year;
+if ($prevMonth < 1) {
+    $prevMonth = 12;
+    $prevYear--;
 }
 
-// Sluit de databaseverbinding
-$mysqli->close();
-?>
+$nextMonth = $month + 1;
+$nextYear = $year;
+if ($nextMonth > 12) {
+    $nextMonth = 1;
+    $nextYear++;
+}
+
+?><!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda - <?php echo getMonthName($month) . " $year"; ?></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        table {
+            margin: 0 auto;
+            border-collapse: collapse;
+            width: 80%;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .highlight {
+            background-color: #add8e6;
+        }
+        .navigation {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Agenda - <?php echo getMonthName($month) . " $year"; ?></h1>
+
+    <div class="navigation">
+        <?php echo createNavLink($prevMonth, $prevYear, 'Vorige maand'); ?> |
+        <?php echo createNavLink($nextMonth, $nextYear, 'Volgende maand'); ?>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Zo</th>
+                <th>Ma</th>
+                <th>Di</th>
+                <th>Wo</th>
+                <th>Do</th>
+                <th>Vr</th>
+                <th>Za</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <?php
+                // Vul lege cellen in voor de eerste dag van de maand
+                for ($i = 0; $i < $firstDayOfMonth; $i++) {
+                    echo '<td></td>';
+                }
+
+                // Vul de dagen van de maand in
+                for ($day = 1; $day <= $daysInMonth; $day++) {
+                    $currentDay = ($day == date('j') && $month == date('m') && $year == date('Y')) ? 'highlight' : '';
+                    echo "<td class='$currentDay'>$day</td>";
+
+                    // Maak een nieuwe rij na elke zaterdag
+                    if (($day + $firstDayOfMonth) % 7 == 0) {
+                        echo '</tr><tr>';
+                    }
+                }
+
+                // Vul lege cellen in voor de resterende dagen van de week
+                $remainingDays = (7 - ($daysInMonth + $firstDayOfMonth) % 7) % 7;
+                for ($i = 0; $i < $remainingDays; $i++) {
+                    echo '<td></td>';
+                }
+                ?>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>
